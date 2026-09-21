@@ -1,0 +1,197 @@
+@import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+/* ------------------------------------------------------------------ tokens */
+@theme {
+  --color-abyss: #07182a;
+  --color-navy: #0d2b45;
+  --color-navy-2: #143854;
+  --color-line-dark: #1d3a55;
+  --color-amber: #f4a900;
+  --color-amber-2: #ffc94d;
+  --color-amber-ink: #8a5f00;
+  --color-paper: #eef2f6;
+  --color-paper-2: #e1e8ef;
+  --color-card: #ffffff;
+  --color-ink: #16202a;
+  --color-slate: #56667a;
+  --color-mist: #8fa3b8;
+  --color-fog: #d9e1ea;
+  --color-ok: #1f9d76;
+  --color-warn: #c77700;
+  --color-bad: #c94545;
+
+  /* modality colors: one meaning everywhere */
+  --color-m-voice: #7056c8;
+  --color-m-video: #d95a5a;
+  --color-m-image: #1f9d76;
+  --color-m-text: #2d6cdf;
+  --color-m-docs: #f4a900;
+
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Martian Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --breakpoint-xs: 26rem;
+}
+
+/* -------------------------------------------------------------------- base */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-abyss);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: var(--color-amber);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-amber);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+}
+
+/* -------------------------------------------------------------- components */
+@layer components {
+  .display {
+    font-family: var(--font-display);
+    font-variation-settings: "opsz" 96;
+    letter-spacing: -0.035em;
+    line-height: 0.92;
+    font-weight: 700;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-stretch: 88%;
+  }
+  .mono {
+    font-family: var(--font-mono);
+    font-stretch: 88%;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.75rem;
+    padding: 0 1.25rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s, transform 0.2s var(--ease-out-expo);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-sm { height: 2.25rem; padding: 0 0.9rem; font-size: 0.875rem; }
+  .btn-amber { background: var(--color-amber); color: var(--color-ink); }
+  .btn-amber:hover { background: var(--color-amber-2); }
+  .btn-ghost-dark { border: 1px solid rgb(255 255 255 / 0.18); color: var(--color-paper); }
+  .btn-ghost-dark:hover { background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.3); }
+  .btn-ink { background: var(--color-ink); color: var(--color-paper); }
+  .btn-ink:hover { background: #22303e; }
+  .btn-line { border: 1px solid var(--color-fog); color: var(--color-ink); background: var(--color-card); }
+  .btn-line:hover { border-color: var(--color-mist); }
+  .btn-danger { color: var(--color-bad); border: 1px solid #f1cccc; background: var(--color-card); }
+  .btn-danger:hover { background: #fdf2f2; }
+  .btn:disabled { opacity: 0.55; }
+
+  /* form controls on paper */
+  .field-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-stretch: 88%;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-slate);
+    margin-bottom: 0.4rem;
+  }
+  .input {
+    width: 100%;
+    border-radius: 0.625rem;
+    border: 1px solid var(--color-fog);
+    background: var(--color-card);
+    color: var(--color-ink);
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9375rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input::placeholder { color: #8b98a8; }
+  .input:focus { outline: none; border-color: var(--color-amber); box-shadow: 0 0 0 3px rgb(244 169 0 / 0.22); }
+  textarea.input { resize: vertical; min-height: 5rem; line-height: 1.55; }
+
+  .card {
+    background: var(--color-card);
+    border: 1px solid var(--color-fog);
+    border-radius: 1rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 1.6rem;
+    padding: 0 0.6rem;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-stretch: 88%;
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* ------------------------------------------------------------ custom cursor */
+@media (hover: hover) and (pointer: fine) {
+  .cursor-on, .cursor-on a, .cursor-on button, .cursor-on [role="button"], .cursor-on label { cursor: none; }
+}
+
+/* --------------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------- utilities */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.animate-pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
+.animate-rise { animation: rise 0.5s var(--ease-out-expo) both; }
+.skeleton {
+  background: linear-gradient(90deg, #e6ecf2 0%, #f3f6f9 50%, #e6ecf2 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 0.5rem;
+}

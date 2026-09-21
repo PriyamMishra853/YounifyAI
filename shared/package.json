@@ -1,0 +1,9 @@
+{
+  "name": "@younifyai/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Domain catalog (templates, modalities, plans, roles) and document validation shared by frontend and backend.",
+  "exports": { ".": "./src/index.js" },
+  "scripts": { "test": "node --test" }
+}

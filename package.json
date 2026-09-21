@@ -1,0 +1,13 @@
+{
+  "name": "younifyai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "YounifyAI — capture anything, document everything. Multimodal AI documentation platform.",
+  "workspaces": ["shared", "frontend", "backend"],
+  "scripts": {
+    "dev": "npm run dev --workspace frontend",
+    "dev:web": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "test": "npm test --workspaces --if-present"
+  }
+}
