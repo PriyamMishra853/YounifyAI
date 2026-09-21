@@ -16,7 +16,15 @@ export function splitSentences(text = '') {
 }
 
 const firstLine = (text = '') => String(text).split(/\r?\n/).map((l) => l.trim()).find(Boolean) || ''
-const isoDate = (d) => new Date(d).toISOString().slice(0, 10)
+/** YYYY-MM-DD of `d` in a time zone (documents are dated where the person is, not in UTC). */
+export function localDate(d = new Date(), timeZone = 'Asia/Kolkata') {
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(d))
+}
+const addDays = (ymd, n) => {
+  const d = new Date(`${ymd}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
 
@@ -147,19 +155,18 @@ const DECISION = /\b(decided|agreed|approved|final(?:ised|ized)?|will move|going
 const ACTION = /\b(i will|i'll|will (?:send|update|share|prepare|call|fix|publish|create|check|draft|book|follow)|need to|needs to|to do|action|by (?:mon|tue|wed|thu|fri|sat|sun|tomorrow|today|eod|next week))/i
 const RISK = /\b(risk|blocker|blocked|delay|delayed|not confirmed|issue|problem|concern|shortage|stock-?out)\b/i
 
-function dueFrom(sentence, now) {
+/** A due date named in the sentence, relative to `today` (YYYY-MM-DD). */
+function dueFrom(sentence, today) {
   const s = sentence.toLowerCase()
-  const d = new Date(now)
-  if (/\btomorrow\b/.test(s)) { d.setDate(d.getDate() + 1); return isoDate(d) }
-  if (/\btoday\b|\beod\b/.test(s)) return isoDate(d)
-  if (/\bnext week\b/.test(s)) { d.setDate(d.getDate() + 7); return isoDate(d) }
+  if (/\btomorrow\b/.test(s)) return addDays(today, 1)
+  if (/\btoday\b|\beod\b/.test(s)) return today
+  if (/\bnext week\b/.test(s)) return addDays(today, 7)
   const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
   const m = s.match(/\bby (sun|mon|tue|wed|thu|fri|sat)[a-z]*/)
   if (m) {
     const target = days.indexOf(m[1])
-    const diff = (target - d.getDay() + 7) % 7 || 7
-    d.setDate(d.getDate() + diff)
-    return isoDate(d)
+    const diff = (target - new Date(`${today}T00:00:00Z`).getUTCDay() + 7) % 7 || 7
+    return addDays(today, diff)
   }
   const iso = s.match(/\b(\d{4}-\d{2}-\d{2})\b/)
   return iso ? iso[1] : ''
@@ -178,10 +185,10 @@ function cleanTask(s) {
  * @param {object} template  a catalog template
  * @param {{text?: string, sources?: string[], now?: Date, hints?: object}} input
  */
-export function offlineStructure(template, { text = '', sources = [], now = new Date(), hints = {} } = {}) {
+export function offlineStructure(template, { text = '', sources = [], now = new Date(), timeZone = 'Asia/Kolkata', hints = {} } = {}) {
   const t = String(text || '').trim()
   const sentences = splitSentences(t.replace(/\n+/g, '. ').replace(/\.\s*\./g, '.'))
-  const today = isoDate(now)
+  const today = localDate(now, timeZone)
   const head = firstLine(t)
   const title = head && head.length <= 80 && !/[.!?]$/.test(head) ? head : ''
   let raw = {}
@@ -220,7 +227,7 @@ export function offlineStructure(template, { text = '', sources = [], now = new 
         attendees: [...attendees],
         summary: statements.slice(0, 3).map((x) => x.s).join(' '),
         decisions: statements.filter((x) => DECISION.test(x.s)).map((x) => x.s.replace(/^we\s+/i, 'We ')),
-        action_items: statements.filter((x) => ACTION.test(x.s) && !DECISION.test(x.s)).map((x) => ({ task: cleanTask(x.s), owner: x.who, due: dueFrom(x.s, now) })),
+        action_items: statements.filter((x) => ACTION.test(x.s) && !DECISION.test(x.s)).map((x) => ({ task: cleanTask(x.s), owner: x.who, due: dueFrom(x.s, today) })),
         risks: statements.filter((x) => RISK.test(x.s) && !ACTION.test(x.s)).map((x) => x.s.replace(/^risk\s*[—–:-]\s*/i, '')),
       }
       break

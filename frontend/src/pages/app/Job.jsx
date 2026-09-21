@@ -49,7 +49,7 @@ export default function Job() {
   if (!job) return <div className="space-y-3"><div className="skeleton h-10 w-72" /><div className="skeleton h-96" /></div>
 
   const stages = PIPELINE_STAGES.map((s) => ({ ...s, ...(job.stages.find((x) => x.key === s.key) || { status: 'pending', log: [] }) }))
-  const done = stages.filter((s) => s.status === 'done').length
+  const done = stages.filter((s) => s.status === 'done' || s.status === 'skipped').length
 
   return (
     <div>
@@ -73,7 +73,7 @@ export default function Job() {
                     <span className="mono mr-2 text-[0.7rem] text-slate">{String(i + 1).padStart(2, '0')}</span>
                     {s.label}
                   </p>
-                  <span className="mono text-[0.7rem] text-slate">{s.status === 'done' ? duration(s.startedAt, s.finishedAt) : s.status === 'running' ? 'running' : ''}</span>
+                  <span className="mono text-[0.7rem] text-slate">{s.status === 'done' ? duration(s.startedAt, s.finishedAt) : s.status === 'running' ? 'running' : s.status === 'skipped' ? 'skipped' : ''}</span>
                 </div>
                 <p className="text-[0.85rem] text-slate">{s.detail}</p>
                 {!!s.log?.length && (

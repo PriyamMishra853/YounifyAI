@@ -1,0 +1,40 @@
+{
+  "name": "@younifyai/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "YounifyAI API: auth, workspaces, capture jobs, the seven-stage pipeline, documents and exports.",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "node --watch-path=src --watch-path=../shared/src --env-file-if-exists=.env src/index.js",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "migrate": "node --env-file-if-exists=.env src/db/cli.js migrate",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "start:prod": "node --env-file-if-exists=.env src/production.js"
+  },
+  "devDependencies": {
+    "supertest": "^7.2.2"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-pgvector": "^0.0.9",
+    "@fontsource/hanken-grotesk": "^5.3.0",
+    "@fontsource/martian-mono": "^5.3.0",
+    "@fontsource/noto-sans": "^5.3.0",
+    "@younifyai/shared": "*",
+    "cookie-parser": "^1.4.7",
+    "docx": "^9.7.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "multer": "^2.4.0",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.0",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "zod": "^4.6.5"
+  }
+}

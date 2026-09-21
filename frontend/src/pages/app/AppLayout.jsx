@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import { BookOpen, FileText, LayoutGrid, LogOut, Menu as MenuIcon, Plus, Settings, Shapes, X } from 'lucide-react'
 import { Logo } from '../../components/Brand'
 import { UsageMeter } from '../../components/ui'
@@ -14,12 +15,42 @@ const NAV = [
   { to: '/app/settings', label: 'Settings', icon: Settings },
 ]
 
+/** Shown only to people who belong to more than one workspace. */
+function WorkspaceSwitcher() {
+  const { workspace, refresh } = useAuth()
+  const navigate = useNavigate()
+  const [list, setList] = useState([])
+  useEffect(() => { api.listWorkspaces?.().then(setList).catch(() => {}) }, [workspace?.id])
+  if (list.length < 2) return null
+  return (
+    <label className="mt-5 block px-2">
+      <span className="eyebrow text-mist/70">Workspace</span>
+      <select
+        value={workspace?.id}
+        onChange={async (e) => {
+          try {
+            await api.switchWorkspace(e.target.value)
+            await refresh()
+            navigate('/app')
+          } catch (err) {
+            toast.error(err.message)
+          }
+        }}
+        className="mt-1.5 w-full rounded-lg border border-white/10 bg-navy px-2.5 py-2 text-[0.88rem] text-paper"
+      >
+        {list.map((w) => <option key={w.id} value={w.id}>{w.name} · {w.role}</option>)}
+      </select>
+    </label>
+  )
+}
+
 function Sidebar({ usage, onNavigate }) {
   const { user, workspace, role, logout, can } = useAuth()
   const navigate = useNavigate()
   return (
     <div className="flex h-full flex-col bg-abyss px-4 py-5 text-paper">
       <div className="px-2"><Logo to="/app" /></div>
+      <WorkspaceSwitcher />
       {can('edit') && (
         <Link to="/app/capture" onClick={onNavigate} className="btn btn-amber mt-7 w-full">
           <Plus size={18} aria-hidden="true" /> New capture

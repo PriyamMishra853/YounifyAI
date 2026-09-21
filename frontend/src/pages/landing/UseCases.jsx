@@ -1,10 +1,9 @@
 import { useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { SYSTEM_TEMPLATES } from '@younifyai/shared'
+import { SYSTEM_TEMPLATES, showcaseDocuments } from '@younifyai/shared'
 import { gsap, useGSAP, useReducedMotion } from '../../lib/motion'
 import { ModalityChip } from '../../components/Brand'
 import DocPreview from '../../components/DocPreview'
-import { showcaseDocuments } from '../../lib/api/samples'
 import { bytes } from '../../lib/format'
 
 const BENEFITS = {

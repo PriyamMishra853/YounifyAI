@@ -5,9 +5,13 @@ import '@fontsource-variable/hanken-grotesk'
 import '@fontsource-variable/martian-mono/standard.css'
 import './styles/index.css'
 import App from './App'
+import { detectApi } from './lib/api'
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// decide between the server and the in-browser API before anything asks for data
+detectApi().finally(() => {
+  createRoot(document.getElementById('root')).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

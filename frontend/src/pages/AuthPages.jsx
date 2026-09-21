@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
-import { SYSTEM_TEMPLATES } from '@younifyai/shared'
+import { SYSTEM_TEMPLATES, showcaseDocuments } from '@younifyai/shared'
 import { Logo } from '../components/Brand'
 import DocPreview from '../components/DocPreview'
 import { useAuth } from '../lib/auth'
-import { showcaseDocuments } from '../lib/api/samples'
 
 function AuthShell({ title, subtitle, children, footer }) {
   const bill = showcaseDocuments().voice_bill

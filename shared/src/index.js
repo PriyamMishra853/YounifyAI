@@ -1,3 +1,4 @@
 export * from './catalog.js'
 export * from './document.js'
 export * from './heuristics.js'
+export * from './samples.js'

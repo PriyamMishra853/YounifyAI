@@ -7,7 +7,7 @@ import {
   offlineStructure, normalizeContent, validateDocument, computeDerived, toMarkdown,
 } from '@younifyai/shared'
 import { ApiError } from './errors'
-import { sampleDocuments, SAMPLE_PRICE_LIST } from './samples'
+import { sampleDocuments, SAMPLE_PRICE_LIST } from '@younifyai/shared'
 
 const KEY = 'younify.mock.v1'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -172,6 +172,17 @@ export async function updateWorkspace({ name }) {
   workspace.name = name.trim()
   commit()
   return workspace
+}
+
+export async function listWorkspaces() {
+  await latency()
+  const { user } = ctx()
+  return db.members.filter((m) => m.userId === user.id && m.status === 'active')
+    .map((m) => ({ ...db.workspaces.find((w) => w.id === m.workspaceId), role: m.role }))
+}
+
+export async function switchWorkspace() {
+  throw new ApiError('Switching workspaces needs the API server.', { status: 501, code: 'needs_server' })
 }
 
 export async function getUsage() {
@@ -506,7 +517,9 @@ export async function listDocuments({ q = '', templateId = '', status = '', sort
 
 export async function getDocument(id) {
   await latency()
-  return withIssues(findDoc(id), ctx().workspace.id)
+  const { workspace } = ctx()
+  const doc = findDoc(id)
+  return { ...withIssues(doc, workspace.id), template: allTemplates(workspace.id).find((t) => t.id === doc.templateId) || null }
 }
 
 export async function updateDocument(id, { title, content, expectedVersion }) {

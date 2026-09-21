@@ -133,7 +133,7 @@ export default function DocumentEditor() {
     Promise.all([api.getDocument(id), api.listTemplates()])
       .then(([d, ts]) => {
         accept(d)
-        setTemplate(ts.find((t) => t.id === d.templateId) || null)
+        setTemplate(d.template || ts.find((t) => t.id === d.templateId) || null)
         document.title = `${d.title} · YounifyAI`
       })
       .catch(setError)

@@ -79,3 +79,13 @@ test('offlineStructure turns timed notes into diary moments', () => {
   assert.deepEqual(c.moments.map((m) => m.time), ['06:10', '11:30'])
   assert.ok(validateDocument(t, c).ok)
 })
+
+test('documents are dated in India time and due dates follow from it', async () => {
+  const { localDate } = await import('../src/index.js')
+  // 18:32 UTC on the 21st is already the 22nd in India
+  assert.equal(localDate(new Date('2026-09-21T18:32:00Z')), '2026-09-22')
+  const t = templateById('meeting_report')
+  const c = offlineStructure(t, { text: 'Sync\nRavi: I will send the quote by Friday.\nAnu: I will book the hall tomorrow.', now: new Date('2026-09-21T18:32:00Z') })
+  assert.equal(c.date, '2026-09-22') // a Tuesday
+  assert.deepEqual(c.action_items.map((a) => a.due), ['2026-09-25', '2026-09-23'])
+})
