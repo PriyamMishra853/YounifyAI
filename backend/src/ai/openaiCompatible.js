@@ -15,7 +15,41 @@ const PART = 12_000
  * options: { name, baseUrl, apiKey, models: { chat, vision, transcribe, embed }, embedDims, timeoutMs, ocrCacheDir }
  */
 export function createOpenAiCompatibleProvider(options, offline, log) {
-  const { name, baseUrl, apiKey, models, embedDims = 384, timeoutMs = 120_000 } = options
+  const { name, baseUrl, apiKey, embedDims = 384, timeoutMs = 120_000, prefer = {} } = options
+  const models = { ...options.models }
+  let resolved = null
+
+  /**
+   * Model catalogues change and accounts differ. Before the first call, check
+   * which of the configured ids the account actually has and substitute an
+   * available one (by `prefer`) instead of failing the capture.
+   */
+  async function resolveModels() {
+    resolved ||= (async () => {
+      let available
+      try {
+        const data = await call('/models', { method: 'GET' }, { attempts: 2 })
+        available = (data.data || []).map((m) => m.id)
+      } catch (e) {
+        log?.warn({ err: e.message, provider: name }, 'could not list models; using configured ids')
+        return
+      }
+      if (!available.length) return
+      for (const role of ['chat', 'vision', 'transcribe', 'fast']) {
+        const want = models[role]
+        if (!want || available.includes(want)) continue
+        const pick = (prefer[role] || []).flatMap((re) => available.filter((id) => re.test(id)))[0]
+        if (pick) {
+          log?.warn({ provider: name, role, configured: want, using: pick }, 'model not available on this account; using another')
+          models[role] = pick
+        } else {
+          log?.warn({ provider: name, role, configured: want, available }, 'no usable model for this role')
+          models[role] = role === 'vision' ? null : models[role]
+        }
+      }
+    })()
+    return resolved
+  }
 
   async function call(route, init, { attempts = 5 } = {}) {
     let lastError
@@ -43,14 +77,27 @@ export function createOpenAiCompatibleProvider(options, offline, log) {
     throw lastError
   }
 
-  async function chat(messages, { model = models.chat, json = false, maxTokens = 4096 } = {}) {
-    const body = { model, messages, temperature: 0.1, max_tokens: maxTokens }
-    if (json) body.response_format = { type: 'json_object' }
-    const data = await call('/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  async function chat(messages, { model, json = false, maxTokens = 4096 } = {}) {
+    await resolveModels()
+    const send = (withJson) => {
+      const body = { model: model || models.chat, messages, temperature: 0.1, max_tokens: maxTokens }
+      if (withJson) body.response_format = { type: 'json_object' }
+      return call('/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    }
+    let data
+    try {
+      data = await send(json)
+    } catch (e) {
+      // not every model supports json_object; the prompt already asks for JSON
+      if (!json || !/json/i.test(e.message)) throw e
+      log?.warn({ provider: name, model: model || models.chat }, 'model rejected JSON mode; retrying without it')
+      data = await send(false)
+    }
     return { text: data.choices?.[0]?.message?.content ?? '', usage: data.usage }
   }
 
   async function transcribe(filePath, { prompt = '' } = {}) {
+    await resolveModels()
     const form = new FormData()
     form.set('file', await openAsBlob(filePath), path.basename(filePath))
     form.set('model', models.transcribe)
@@ -61,6 +108,8 @@ export function createOpenAiCompatibleProvider(options, offline, log) {
   }
 
   async function see(imagePath, { prompt }) {
+    await resolveModels()
+    if (!models.vision) throw new Error(`${name} has no vision model on this account`)
     const buf = await fs.readFile(imagePath)
     const mime = /\.png$/i.test(imagePath) ? 'image/png' : /\.webp$/i.test(imagePath) ? 'image/webp' : 'image/jpeg'
     const { text } = await chat([
@@ -98,14 +147,17 @@ export function createOpenAiCompatibleProvider(options, offline, log) {
 
   const extractor = createExtractor({
     transcribe: models.transcribe ? transcribe : null,
-    see: models.vision ? see : null,
+    see: options.models.vision ? see : null,
     ocrCacheDir: options.ocrCacheDir,
     speechHint: (input) => speechHintFor(input.template),
   })
 
   return {
     name,
-    models: { chat: models.chat, vision: models.vision, transcribe: models.transcribe, embed: models.embed ? `${models.embed}-${embedDims}` : offline.models.embed },
+    get models() {
+      return { chat: models.chat, vision: models.vision, transcribe: models.transcribe, embed: models.embed ? `${models.embed}-${embedDims}` : offline.models.embed }
+    },
+    resolveModels,
 
     extract: (input, io) => extractor(input, io),
 

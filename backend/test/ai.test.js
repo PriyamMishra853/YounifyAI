@@ -8,6 +8,7 @@ import { SYSTEM_TEMPLATES, sampleDocuments } from '@younifyai/shared'
 import { docxText, pdfText, pptxText } from '../src/ai/extract.js'
 import { hasAudioStream, keyFrames, makeTestVideo, speechAudio, workDir } from '../src/ai/media.js'
 import { buildMessages, parseJsonReply } from '../src/ai/prompt.js'
+import { GROQ_DEFAULTS } from '../src/ai/groq.js'
 import { renderDocx, renderPdf } from '../src/services/exports.js'
 import { signedIn, startStack } from './helpers.js'
 import { startAiStub, startQdrantStub } from './stubs.js'
@@ -93,7 +94,7 @@ describe('an OpenAI-compatible provider (Groq settings) end to end', () => {
   test('health names the provider and its models', async () => {
     const res = await stack.agent().get('/api/health')
     assert.equal(res.body.ai.provider, 'groq')
-    assert.equal(res.body.ai.models.transcribe, 'whisper-large-v3-turbo')
+    assert.equal(res.body.ai.models.transcribe, GROQ_DEFAULTS.transcribe)
   })
 
   test('a voice note is transcribed, structured by the model and saved', async () => {
@@ -110,11 +111,11 @@ describe('an OpenAI-compatible provider (Groq settings) end to end', () => {
 
     const stt = ai.calls.find((c) => c.url.endsWith('/audio/transcriptions'))
     assert.equal(stt.auth, 'Bearer test-key')
-    assert.match(stt.form, /whisper-large-v3-turbo/)
+    assert.ok(stt.form.includes(GROQ_DEFAULTS.transcribe))
     assert.match(stt.form, /Hinglish shop order/) // the speech hint for bills
 
     const chat = ai.calls.filter((c) => c.url.endsWith('/chat/completions')).at(-1)
-    assert.equal(chat.json.model, 'llama-3.3-70b-versatile')
+    assert.equal(chat.json.model, GROQ_DEFAULTS.chat)
     assert.deepEqual(chat.json.response_format, { type: 'json_object' })
     assert.match(chat.json.messages[1].content, /do kilo basmati chawal/)
     assert.match(chat.json.messages[1].content, /Basmati rice \| kg \| 120/) // the price list travelled with it
@@ -136,7 +137,7 @@ describe('an OpenAI-compatible provider (Groq settings) end to end', () => {
     const job = (await agent.get(`/api/jobs/${res.body.id}`)).body
     assert.equal(job.status, 'succeeded')
     const vision = ai.calls.find((c) => c.url.endsWith('/chat/completions') && Array.isArray(c.json.messages.at(-1).content))
-    assert.equal(vision.json.model, 'meta-llama/llama-4-scout-17b-16e-instruct')
+    assert.equal(vision.json.model, GROQ_DEFAULTS.vision)
     assert.match(vision.json.messages[0].content[1].image_url.url, /^data:image\/jpeg;base64,/)
     assert.ok(job.stages.find((s) => s.key === 'extract').log.some((l) => /via vision/.test(l)))
   })

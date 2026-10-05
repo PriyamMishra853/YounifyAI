@@ -17,12 +17,22 @@ models                                   // { chat, vision, transcribe, embed } 
 | Provider | When | chat | vision | speech | embeddings |
 |---|---|---|---|---|---|
 | `offline` | no key configured | rules in `shared` | tesseract OCR | — | local feature hashing (384) |
-| `groq` | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | `meta-llama/llama-4-scout-17b-16e-instruct` | `whisper-large-v3-turbo` | falls back to local hashing |
+| `groq` | `GROQ_API_KEY` | `qwen/qwen3.8-27b` | `qwen/qwen3.8-27b` | `whisper-large-v3-turbo` | falls back to local hashing |
 | `openai` | `OPENAI_API_KEY` | `gpt-4o-mini` | `gpt-4o-mini` | `whisper-1` | `text-embedding-3-small` at 384 dims |
 
-`AI_PROVIDER=auto` (default) picks Groq, then OpenAI, then offline. Model ids change over time — override
-with `AI_CHAT_MODEL`, `AI_VISION_MODEL`, `AI_TRANSCRIBE_MODEL`, `AI_FAST_MODEL`. Any OpenAI-compatible
-gateway works through `AI_BASE_URL`.
+`AI_PROVIDER=auto` (default) picks Groq, then OpenAI, then offline. Any OpenAI-compatible gateway works
+through `AI_BASE_URL`.
+
+**Model ids are defaults, not promises.** Catalogues change and two accounts rarely see the same list, so
+on the first call the provider fetches `/models` and, if a configured id is missing, substitutes an
+available one using the preference lists in `groq.js` (`GROQ_PREFER`) and logs the swap. `/api/health`
+always reports what will really be used. A model that rejects JSON mode is retried once without it, since
+the prompt asks for JSON anyway. Pin ids explicitly with `AI_CHAT_MODEL`, `AI_VISION_MODEL`,
+`AI_TRANSCRIBE_MODEL` and `AI_FAST_MODEL`.
+
+This is not theoretical: the Llama models these defaults originally named disappeared from Groq's
+catalogue during development, and the first capture after that fell back to the offline rules with the
+reason in the job log — which is how it was noticed.
 
 Groq and OpenAI share one implementation (`openaiCompatible.js`) because both speak the OpenAI HTTP API.
 A third vendor with a different API is a new file exporting the same four methods.
