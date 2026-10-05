@@ -59,7 +59,13 @@ export default function Job() {
         actions={<StatusBadge status={job.status} />}
       />
       <div className="mt-4 flex flex-wrap gap-1.5">
-        {job.inputs.map((i) => <ModalityChip key={i.id} kind={i.kind} tone="paper">{i.name}</ModalityChip>)}
+        {job.inputs.map((i) => (i.url ? (
+          <a key={i.id} href={i.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+            <ModalityChip kind={i.kind} tone="paper">{i.name}</ModalityChip>
+          </a>
+        ) : (
+          <ModalityChip key={i.id} kind={i.kind} tone="paper">{i.name}</ModalityChip>
+        )))}
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_20rem]">

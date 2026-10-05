@@ -27,8 +27,8 @@ export function chunkText(text, size = 700) {
   return chunks.filter(Boolean)
 }
 
-/** Store chunks with their embeddings (when an embedder is available). */
-export async function insertChunks(q, { sourceId, workspaceId, chunks, ai }) {
+/** Store chunks with their embeddings (when an embedder is available) and index them. */
+export async function insertChunks(q, { sourceId, workspaceId, templateId = null, title = '', chunks, ai, vectorStore }) {
   const vectors = ai ? await ai.embed(chunks) : null
   for (const [i, chunk] of chunks.entries()) {
     await q.query(
@@ -36,6 +36,7 @@ export async function insertChunks(q, { sourceId, workspaceId, chunks, ai }) {
       [sourceId, workspaceId, i, chunk, vectors?.[i] ? `[${vectors[i].join(',')}]` : null, vectors ? ai.models.embed : null],
     )
   }
+  await vectorStore?.index({ sourceId, workspaceId, templateId, title, chunks, vectors, model: ai?.models.embed })
 }
 
 export async function listSources(q) {
@@ -48,9 +49,9 @@ export async function listSources(q) {
 
 /**
  * Add reference material. `text` is already extracted (the route runs uploaded
- * files through the extractor). `embed` turns chunks into vectors, or null.
+ * files through the extractor); `ai` embeds the chunks and `vectorStore` indexes them.
  */
-export async function addSource(q, ctx, { title, templateId, text, kind, mime, storageKey }, { ai } = {}) {
+export async function addSource(q, ctx, { title, templateId, text, kind, mime, storageKey }, { ai, vectorStore } = {}) {
   const limit = planById(ctx.workspace.plan).limits.sources
   if (limit != null) {
     const { n } = await q.one('select count(*)::int as n from app.sources')
@@ -69,7 +70,7 @@ export async function addSource(q, ctx, { title, templateId, text, kind, mime, s
     [id, ctx.workspace.id, templateId || null, title.trim(), kind, mime || null, storageKey || null, text, ctx.user.id],
   )
   const chunks = chunkText(text)
-  await insertChunks(q, { sourceId: id, workspaceId: ctx.workspace.id, chunks, ai })
+  await insertChunks(q, { sourceId: id, workspaceId: ctx.workspace.id, templateId: templateId || null, title: row.title, chunks, ai, vectorStore })
   await audit(q, { workspaceId: ctx.workspace.id, actorId: ctx.user.id, action: 'source.added', detail: row.title, meta: { chunks: chunks.length } })
   return sourceOut(row)
 }

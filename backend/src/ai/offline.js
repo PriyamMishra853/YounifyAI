@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { offlineStructure } from '@younifyai/shared'
+import { createExtractor } from './extract.js'
 
 // The provider used when no AI key is configured. Everything here is local and
 // deterministic, so tests and demos behave the same on every machine.
@@ -29,28 +30,23 @@ export function hashEmbed(text) {
   return Array.from(v, (x) => Math.round((x / norm) * 1e6) / 1e6)
 }
 
-const TEXT_FILE = /^text\/|\/(json|csv|xml|markdown)$|\.(txt|md|csv|json|srt|vtt)$/i
-
-export function createOfflineProvider() {
+export function createOfflineProvider({ ocrCacheDir } = {}) {
+  // documents are parsed locally; images and video frames go through tesseract OCR;
+  // speech needs a provider
+  const extractor = createExtractor({ ocrCacheDir })
   return {
     name: 'offline',
-    models: { chat: 'rules', transcribe: null, vision: null, embed: 'hash-384' },
+    models: { chat: 'rules', transcribe: null, vision: 'tesseract-ocr', embed: 'hash-384' },
 
-    /** Text for one input, or { text: '' , note } when this provider cannot read it. */
-    async extract(input, { readFile }) {
-      if (input.text_content != null) return { text: input.text_content, engine: 'direct' }
-      if (TEXT_FILE.test(input.mime || '') || TEXT_FILE.test(input.name)) {
-        return { text: (await readFile()).toString('utf8'), engine: 'text-file' }
-      }
-      return { text: '', engine: 'none', note: `${input.name}: ${input.kind} needs an AI provider to read` }
-    },
+    /** Text for one input, or { text: '', note } when it cannot be read without a provider. */
+    extract: (input, io) => extractor(input, io),
 
     async embed(texts) {
       return texts.map(hashEmbed)
     },
 
-    async generate({ template, text, sources, instructions, now }) {
-      const content = offlineStructure(template, { text: [instructions, text].filter(Boolean).join('\n'), sources, now })
+    async generate({ template, text, sources, instructions, hints, now }) {
+      const content = offlineStructure(template, { text: [instructions, text].filter(Boolean).join('\n'), sources, hints, now })
       return { content, engine: 'offline', model: 'rules' }
     },
   }

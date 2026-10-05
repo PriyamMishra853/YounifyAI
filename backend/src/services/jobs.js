@@ -9,7 +9,7 @@ import { usage } from './workspaces.js'
  * Create a capture job: store the inputs, enforce the daily allowance and queue
  * the job for the pipeline worker. `files` come from multer (already on disk in tmp).
  */
-export async function createJob({ db, storage, events }, ctx, { templateId, instructions = '', texts = [], files = [] }) {
+export async function createJob({ db, storage, events }, ctx, { templateId, instructions = '', texts = [], files = [], links = [] }) {
   const jobId = uuidv7()
   const wsId = ctx.workspace.id
   const inputs = [
@@ -18,6 +18,9 @@ export async function createJob({ db, storage, events }, ctx, { templateId, inst
     })),
     ...files.map((f) => ({
       id: uuidv7(), kind: modalityOf({ type: f.mimetype, name: f.originalname }), name: safeFileName(f.originalname), mime: f.mimetype, size: f.size, tmpPath: f.path,
+    })),
+    ...links.map((l) => ({
+      id: uuidv7(), kind: 'video', name: (l.title || `YouTube video ${l.id}`).slice(0, 200), mime: 'text/uri-list', size: 0, url: `https://www.youtube.com/watch?v=${l.id}`,
     })),
   ]
   if (!inputs.length && !instructions.trim()) throw invalid('Add at least one input: a file, a recording or some text.')
@@ -51,9 +54,9 @@ export async function createJob({ db, storage, events }, ctx, { templateId, inst
       )
       for (const [position, i] of inputs.entries()) {
         await q.query(
-          `insert into app.job_inputs (id, job_id, workspace_id, position, kind, name, mime, size_bytes, storage_key, text_content)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [i.id, jobId, wsId, position, i.kind, i.name, i.mime, i.size, i.storageKey || null, i.text ?? null],
+          `insert into app.job_inputs (id, job_id, workspace_id, position, kind, name, mime, size_bytes, storage_key, text_content, source_url)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [i.id, jobId, wsId, position, i.kind, i.name, i.mime, i.size, i.storageKey || null, i.text ?? null, i.url || null],
         )
       }
       for (const [position, s] of PIPELINE_STAGES.entries()) {

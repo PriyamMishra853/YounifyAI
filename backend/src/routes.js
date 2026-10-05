@@ -16,6 +16,7 @@ import * as jobs from './services/jobs.js'
 import * as documents from './services/documents.js'
 import { audit, listAudit } from './services/audit.js'
 import { renderExport } from './services/exports.js'
+import { LinkError, youtubeId, youtubeInfo } from './ai/youtube.js'
 
 const email = z.string().trim().toLowerCase().email('Enter a valid email address.')
 const signupBody = z.object({
@@ -32,7 +33,7 @@ const EDIT = requireRole('owner', 'editor')
 const OWNER = requireRole('owner')
 
 export function apiRouter(deps) {
-  const { db, config, storage, events, ai } = deps
+  const { db, config, storage, events, ai, vectors } = deps
   const r = express.Router()
   const W = (req, fn) => inWorkspace(db, req, fn)
   const meta = (req) => ({ userAgent: req.get('user-agent'), ip: req.ip })
@@ -176,13 +177,15 @@ export function apiRouter(deps) {
     }
     const source = await W(req, (q) => sources.addSource(q, req.ctx, {
       title: body.title, templateId: body.templateId || null, text, kind: req.file ? 'file' : 'text', mime: req.file?.mimetype, storageKey,
-    }, { ai }))
+    }, { ai, vectorStore: vectors }))
     res.status(201).json(source)
   })
 
   r.delete('/sources/:id', requireAuth, EDIT, async (req, res) => {
-    const s = await W(req, (q) => sources.deleteSource(q, req.ctx, parse(uuid, req.params.id)))
+    const id = parse(uuid, req.params.id)
+    const s = await W(req, (q) => sources.deleteSource(q, req.ctx, id))
     if (s.storage_key) await storage.remove(s.storage_key).catch(() => {})
+    await vectors.removeSource(id).catch((e) => req.log.warn({ err: e.message }, 'vector cleanup failed'))
     res.status(204).end()
   })
 
@@ -195,18 +198,40 @@ export function apiRouter(deps) {
         templateId: z.string().trim().min(1, 'Pick a template.'),
         instructions: z.string().max(4000).optional().default(''),
         texts: z.string().optional().default('[]'),
+        links: z.string().optional().default('[]'),
       }), req.body)
+      let links
+      try {
+        links = z.array(z.object({ url: z.string().max(500), title: z.string().max(300).optional() })).max(5).parse(JSON.parse(body.links))
+      } catch {
+        throw invalid('Links could not be read.')
+      }
+      links = links.map((l) => ({ ...l, id: youtubeId(l.url) }))
+      if (links.some((l) => !l.id)) throw invalid('Only YouTube video links are supported.', { links: 'Paste a youtube.com or youtu.be video link.' })
       let texts
       try {
         texts = z.array(z.object({ name: z.string().max(120).optional(), text: z.string().max(200_000) })).max(10).parse(JSON.parse(body.texts))
       } catch {
         throw invalid('Pasted text could not be read.')
       }
-      const job = await jobs.createJob(deps, req.ctx, { templateId: body.templateId, instructions: body.instructions, texts, files: req.files || [] })
+      const job = await jobs.createJob(deps, req.ctx, { templateId: body.templateId, instructions: body.instructions, texts, links, files: req.files || [] })
       res.status(201).json(job)
     } finally {
       // anything multer left in tmp (on failure the files were never moved)
       await Promise.all((req.files || []).map((f) => fs.rm(f.path, { force: true })))
+    }
+  })
+
+  /** Look up a YouTube link before capturing it: title, channel, length, captions. */
+  r.post('/links/preview', requireAuth, async (req, res) => {
+    const { url } = parse(z.object({ url: z.string().trim().min(1, 'Paste a link.').max(500) }), req.body)
+    if (!youtubeId(url)) throw invalid('That is not a YouTube video link.', { url: 'Paste a youtube.com or youtu.be video link.' })
+    try {
+      const info = await youtubeInfo(url)
+      res.json({ ...info, description: info.description.slice(0, 300), hasCaptions: info.captions.length > 0 })
+    } catch (e) {
+      if (e instanceof LinkError) throw invalid(e.message, { url: e.message })
+      throw invalid('YouTube could not be reached. Check the internet connection and try again.')
     }
   })
 

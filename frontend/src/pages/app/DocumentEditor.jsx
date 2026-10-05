@@ -60,8 +60,12 @@ function SidePanel({ doc, issues, onJump, versions, audit, onRestore, canEdit })
             {doc.inputs?.length ? doc.inputs.map((i) => (
               <li key={i.name} className="flex items-center gap-2.5 text-[0.88rem]">
                 <ModalityChip kind={i.kind} tone="paper" />
-                <span className="min-w-0 flex-1 truncate">{i.name}</span>
-                <span className="mono text-[0.68rem] text-slate">{bytes(i.size)}</span>
+                {i.url ? (
+                  <a href={i.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-medium underline-offset-2 hover:underline">{i.name}</a>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate">{i.name}</span>
+                )}
+                <span className="mono text-[0.68rem] text-slate">{i.url ? 'YouTube' : bytes(i.size)}</span>
               </li>
             )) : <li className="text-[0.88rem] text-slate">No inputs recorded.</li>}
             {doc.jobId && <li className="pt-2"><Link to={`/app/jobs/${doc.jobId}`} className="text-[0.85rem] font-semibold hover:underline">See how it was processed</Link></li>}

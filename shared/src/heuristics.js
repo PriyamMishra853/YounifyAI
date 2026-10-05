@@ -4,6 +4,7 @@
 // leaves the rest empty for the reviewer.
 
 import { computeDerived, normalizeContent } from './document.js'
+import { lectureNotesFromTranscript, looksLikeTranscript } from './transcript.js'
 
 /* --------------------------------------------------------------- basics */
 
@@ -195,6 +196,10 @@ export function offlineStructure(template, { text = '', sources = [], now = new 
 
   switch (template.id) {
     case 'lecture_notes': {
+      if (looksLikeTranscript(t)) {
+        raw = { ...lectureNotesFromTranscript(t, { hints }), date: today }
+        break
+      }
       const body = title ? sentences.filter((s) => s.replace(/[.]$/, '') !== title) : sentences
       const concepts = []
       for (const s of body) {

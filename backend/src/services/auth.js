@@ -18,7 +18,7 @@ async function createSession(q, { userId, workspaceId, days, meta = {} }) {
 }
 
 /** Sample documents and a price list so a new workspace has something to open. */
-async function seedWorkspace(q, { workspaceId, userId, ai }) {
+async function seedWorkspace(q, { workspaceId, userId, ai, vectorStore }) {
   for (const s of sampleDocuments()) {
     const t = templateById(s.templateId)
     const id = uuidv7()
@@ -43,10 +43,10 @@ async function seedWorkspace(q, { workspaceId, userId, ai }) {
      values ($1, $2, 'voice_bill', 'Store price list', 'text', $3, $4)`,
     [sourceId, workspaceId, SAMPLE_PRICE_LIST, userId],
   )
-  await insertChunks(q, { sourceId, workspaceId, chunks: chunkText(SAMPLE_PRICE_LIST), ai })
+  await insertChunks(q, { sourceId, workspaceId, templateId: 'voice_bill', title: 'Store price list', chunks: chunkText(SAMPLE_PRICE_LIST), ai, vectorStore })
 }
 
-export async function signup({ db, config, ai }, { name, email, password }, meta) {
+export async function signup({ db, config, ai, vectors }, { name, email, password }, meta) {
   const normalized = email.trim().toLowerCase()
   const exists = await db.one('select 1 from app.users where email = $1', [normalized])
   if (exists) throw conflict('email_taken', 'An account with this email already exists. Sign in instead.', { email: 'Already registered.' })
@@ -69,7 +69,7 @@ export async function signup({ db, config, ai }, { name, email, password }, meta
         where email = $2 and status = 'invited'`,
       [userId, normalized],
     )
-    await seedWorkspace(q, { workspaceId, userId, ai })
+    await seedWorkspace(q, { workspaceId, userId, ai, vectorStore: vectors })
     await audit(q, { workspaceId, actorId: userId, action: 'workspace.created', detail: `${first}’s workspace` })
     const token = await createSession(q, { userId, workspaceId, days: config.sessionDays, meta })
     return { token }

@@ -42,6 +42,8 @@ export function loadConfig(env = process.env) {
       chatModel: env.AI_CHAT_MODEL || null,
       visionModel: env.AI_VISION_MODEL || null,
       transcribeModel: env.AI_TRANSCRIBE_MODEL || null,
+      fastModel: env.AI_FAST_MODEL || null, // condenses long transcripts part by part
+      baseUrl: env.AI_BASE_URL || null, // an OpenAI-compatible gateway, or a stub in tests
       qdrantUrl: env.QDRANT_URL || null,
       qdrantApiKey: env.QDRANT_API_KEY || null,
     },

@@ -47,7 +47,7 @@ export const sourceOut = (s) => ({
   createdAt: iso(s.created_at),
 })
 
-export const inputOut = (i) => ({ id: i.id, kind: i.kind, name: i.name, size: Number(i.size_bytes), chars: i.extracted_text?.length ?? undefined })
+export const inputOut = (i) => ({ id: i.id, kind: i.kind, name: i.name, size: Number(i.size_bytes), url: i.source_url || undefined, chars: i.extracted_text?.length ?? undefined })
 
 export const stageOut = (s) => ({
   key: s.stage,

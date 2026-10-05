@@ -1,5 +1,6 @@
 import pino from 'pino'
 import { createAi } from './ai/index.js'
+import { createVectorStore } from './ai/vectors.js'
 import { createApp } from './app.js'
 import { loadConfig } from './config.js'
 import { createDb, migrate } from './db/index.js'
@@ -16,8 +17,9 @@ export async function boot(config = loadConfig(), { log = pino({ level: config.l
   const storage = createLocalStorage(config.storageDir)
   await storage.init()
   const ai = await createAi(config, log)
+  const vectors = createVectorStore(config, log)
   const events = createEvents()
-  const deps = { config, log, db, storage, ai, events }
+  const deps = { config, log, db, storage, ai, vectors, events }
   const worker = createWorker(deps)
   const app = createApp(deps)
   return { ...deps, app, worker }

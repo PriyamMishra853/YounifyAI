@@ -10,15 +10,16 @@ import { createOfflineProvider } from './offline.js'
  * See docs/05-handoff.md → "Changing the AI model".
  */
 export async function createAi(config, log) {
-  const offline = createOfflineProvider()
+  const ai = { ...config.ai, ocrCacheDir: config.ai.ocrCacheDir || `${config.storageDir}/ocr-cache` }
+  const offline = createOfflineProvider({ ocrCacheDir: ai.ocrCacheDir })
   let provider = offline
   const want = config.ai.provider
   if (want === 'groq' || (want === 'auto' && config.ai.groqApiKey)) {
-    const { createGroqProvider } = await import('./groq.js').catch(() => ({}))
-    if (createGroqProvider && config.ai.groqApiKey) provider = createGroqProvider(config.ai, offline, log)
+    const { createGroqProvider } = await import('./groq.js')
+    if (config.ai.groqApiKey) provider = createGroqProvider(ai, offline, log)
   } else if (want === 'openai' || (want === 'auto' && config.ai.openaiApiKey)) {
-    const { createOpenAiProvider } = await import('./openai.js').catch(() => ({}))
-    if (createOpenAiProvider && config.ai.openaiApiKey) provider = createOpenAiProvider(config.ai, offline, log)
+    const { createOpenAiProvider } = await import('./openai.js')
+    if (config.ai.openaiApiKey) provider = createOpenAiProvider(ai, offline, log)
   }
   log?.info({ provider: provider.name, models: provider.models }, 'ai provider ready')
   return provider

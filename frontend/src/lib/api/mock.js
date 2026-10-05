@@ -435,6 +435,7 @@ export async function createJob({ templateId, inputs = [], instructions = '' }) 
     throw new ApiError(`You have used all ${usage.limit} documents for today on the ${usage.plan} plan. Upgrade or wait until midnight.`, { status: 429, code: 'quota_exceeded' })
   }
   if (!inputs.length && !instructions.trim()) throw new ApiError('Add at least one input: a file, a recording or some text.', { status: 422, code: 'invalid' })
+  if (inputs.some((i) => i.url)) throw new ApiError('YouTube links need the API server. Start it with `npm run dev` and reload.', { status: 501, code: 'needs_server' })
   const stored = []
   for (const input of inputs) {
     if (input.kind === 'text') stored.push({ id: uid('inp'), kind: 'text', name: input.name || 'pasted_text.txt', size: input.text.length, chars: input.text.length, text: input.text })
@@ -457,6 +458,11 @@ export async function createJob({ templateId, inputs = [], instructions = '' }) 
 }
 
 const publicJob = ({ inputs, ...j }) => ({ ...j, inputs: inputs.map(({ text, ...i }) => i) })
+
+export async function previewLink() {
+  await latency()
+  throw new ApiError('YouTube links need the API server. Start it with `npm run dev` and reload.', { status: 501, code: 'needs_server' })
+}
 
 export async function getJob(id) {
   await sleep(60)

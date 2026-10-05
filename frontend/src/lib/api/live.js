@@ -78,9 +78,11 @@ export function createJob({ templateId, inputs = [], instructions = '' }) {
   form.set('templateId', templateId)
   form.set('instructions', instructions)
   form.set('texts', JSON.stringify(inputs.filter((i) => i.kind === 'text' && i.text != null).map((i) => ({ name: i.name, text: i.text }))))
+  form.set('links', JSON.stringify(inputs.filter((i) => i.url).map((i) => ({ url: i.url, title: i.title }))))
   for (const i of inputs) if (i.file) form.append('files', i.file, i.file.name)
   return request('POST', '/jobs', { form })
 }
+export const previewLink = (url) => post('/links/preview', { url })
 export const getJob = (id) => get(`/jobs/${id}`)
 export const listJobs = ({ limit = 10 } = {}) => get('/jobs', { limit })
 

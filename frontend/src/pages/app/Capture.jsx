@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
-import { ArrowRight, FileUp, Mic, Square, Trash2, Type } from 'lucide-react'
+import { ArrowRight, FileUp, Link2, Mic, Play, Square, Trash2, Type } from 'lucide-react'
 import { MODALITIES, modalityOf } from '@younifyai/shared'
 import { api } from '../../lib/api'
 import { bytes } from '../../lib/format'
@@ -89,6 +89,7 @@ export default function Capture() {
   const [inputs, setInputs] = useState([]) // { key, kind, file? , text?, name }
   const [paste, setPaste] = useState('')
   const [showPaste, setShowPaste] = useState(false)
+  const [link, setLink] = useState({ open: false, url: '', busy: false, error: null })
   const [instructions, setInstructions] = useState('')
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -115,6 +116,24 @@ export default function Capture() {
   }
   const recorder = useRecorder((file) => addFiles([file]))
 
+  /** Look the video up first, so the person sees what will be captured. */
+  const addLink = async () => {
+    const url = link.url.trim()
+    if (!url) return
+    setLink((l) => ({ ...l, busy: true, error: null }))
+    try {
+      const video = await api.previewLink(url)
+      if (template && !template.accepts.includes('video')) throw new Error(`${template.name} does not take video.`)
+      setInputs((cur) => [...cur, {
+        key: `link-${video.id}-${Date.now()}`, kind: 'video', url: video.url, title: video.title,
+        name: video.title, size: 0, video,
+      }])
+      setLink({ open: false, url: '', busy: false, error: null })
+    } catch (e) {
+      setLink((l) => ({ ...l, busy: false, error: e.message }))
+    }
+  }
+
   const addPaste = () => {
     if (!paste.trim()) return
     setInputs((cur) => [...cur, { key: `text-${Date.now()}`, kind: 'text', text: paste, name: `pasted_text_${cur.filter((i) => i.kind === 'text').length + 1}.txt`, size: paste.length }])
@@ -130,7 +149,14 @@ export default function Capture() {
       const job = await api.createJob({
         templateId,
         instructions,
-        inputs: [...inputs.map((i) => (i.kind === 'text' && i.text ? { kind: 'text', text: i.text, name: i.name } : { kind: i.kind, file: i.file })), ...pending],
+        inputs: [
+          ...inputs.map((i) => {
+            if (i.url) return { kind: 'video', url: i.url, title: i.title }
+            if (i.kind === 'text' && i.text) return { kind: 'text', text: i.text, name: i.name }
+            return { kind: i.kind, file: i.file }
+          }),
+          ...pending,
+        ],
       })
       refreshUsage()
       navigate(`/app/jobs/${job.id}`)
@@ -189,6 +215,11 @@ export default function Capture() {
               <p className="mt-1 text-[0.88rem] text-slate">
                 {template ? template.accepts.map((k) => MODALITIES[k].label.toLowerCase()).join(', ') : 'video, voice, images, text, documents'} · up to 500 MB each
               </p>
+              {template?.accepts.includes('video') && (
+                <p className="mt-1 flex items-center justify-center gap-1.5 text-[0.85rem] font-medium text-amber-ink">
+                  <Play size={13} aria-hidden="true" />Or paste a YouTube lecture link below
+                </p>
+              )}
               <div className="mt-5 flex flex-wrap justify-center gap-2">
                 <button type="button" onClick={() => fileRef.current?.click()} className="btn btn-ink btn-sm"><FileUp size={16} aria-hidden="true" />Choose files</button>
                 {recorder.state === 'recording' ? (
@@ -200,10 +231,35 @@ export default function Capture() {
                   <button type="button" onClick={recorder.start} disabled={template && !template.accepts.includes('voice')} className="btn btn-line btn-sm"><Mic size={16} aria-hidden="true" />Record voice</button>
                 )}
                 <button type="button" onClick={() => setShowPaste((s) => !s)} disabled={template && !template.accepts.includes('text')} className="btn btn-line btn-sm" aria-expanded={showPaste}><Type size={16} aria-hidden="true" />Paste text</button>
+                <button type="button" onClick={() => setLink((l) => ({ ...l, open: !l.open, error: null }))} disabled={template && !template.accepts.includes('video')} className="btn btn-line btn-sm" aria-expanded={link.open}><Link2 size={16} aria-hidden="true" />YouTube link</button>
               </div>
               {recorder.state === 'denied' && <p className="mt-3 text-[0.85rem] text-bad">Microphone access was blocked. Allow it in the browser’s site settings, or upload a recording instead.</p>}
               <input ref={fileRef} type="file" multiple accept={accept} className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
             </div>
+
+            {link.open && (
+              <div className="animate-rise mt-4">
+                <label htmlFor="yt" className="field-label">YouTube video link</label>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    id="yt"
+                    type="url"
+                    inputMode="url"
+                    className="input h-11 min-w-[16rem] flex-1"
+                    value={link.url}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    aria-invalid={!!link.error}
+                    onChange={(e) => setLink((l) => ({ ...l, url: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLink() } }}
+                  />
+                  <button type="button" className="btn btn-ink" onClick={addLink} disabled={link.busy || !link.url.trim()}>
+                    {link.busy ? <><Spinner size={14} />Looking it up…</> : 'Add video'}
+                  </button>
+                </div>
+                {link.error && <p role="alert" className="mt-2 text-[0.85rem] text-bad">{link.error}</p>}
+                <p className="mt-2 text-[0.82rem] text-slate">YounifyAI reads the lecture’s captions. Videos without captions need the recording as a file.</p>
+              </div>
+            )}
 
             {showPaste && (
               <div className="animate-rise mt-4">
@@ -220,9 +276,20 @@ export default function Capture() {
               <ul className="mt-4 space-y-2" aria-label="Added inputs">
                 {inputs.map((i) => (
                   <li key={i.key} className="card flex items-center gap-3 px-4 py-3">
-                    <ModalityChip kind={i.kind} tone="paper" />
-                    <span className="min-w-0 flex-1 truncate font-medium">{i.name}</span>
-                    <span className="mono text-[0.7rem] text-slate">{i.kind === 'text' ? `${i.size} chars` : bytes(i.size)}</span>
+                    {i.video ? (
+                      <img src={i.video.thumbnail} alt="" className="h-10 w-16 shrink-0 rounded-md object-cover" />
+                    ) : (
+                      <ModalityChip kind={i.kind} tone="paper" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{i.name}</span>
+                      {i.video && (
+                        <span className="mono block truncate text-[0.68rem] text-slate">
+                          {i.video.channel} · {Math.round(i.video.durationSeconds / 60)} min · {i.video.hasCaptions ? 'captions available' : 'no captions'}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mono text-[0.7rem] text-slate">{i.video ? 'YouTube' : i.kind === 'text' ? `${i.size} chars` : bytes(i.size)}</span>
                     <button type="button" onClick={() => setInputs((cur) => cur.filter((x) => x.key !== i.key))} className="grid h-8 w-8 place-items-center rounded-lg text-slate hover:bg-paper hover:text-bad" aria-label={`Remove ${i.name}`}>
                       <Trash2 size={16} />
                     </button>
