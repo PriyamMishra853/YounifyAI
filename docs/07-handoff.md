@@ -132,4 +132,9 @@ Run one file: `node --test test/documents.test.js` from `backend/`.
 | Job failed with a provider message | `GET /api/health` → provider and models; check the key and model ids |
 | YouTube link refused | the message says why (no captions, private, live). Try another lecture |
 | Everything 401 after a restart | cookies survive restarts, but `backend/data` deleted means a new database — sign up again |
-| Port already in use | another copy is running: `netstat -ano | findstr :8787` |
+| Port already in use | another copy is running; the API says so and exits. `netstat -ano | findstr :8787` |
+| "PGlite failed to initialise properly" | a previous server was killed mid-write and left `backend/data/pg/postmaster.pid`. The API now removes that stale lock and retries by itself; delete the file if you hit it another way |
+
+Note on the API dev script: it deliberately does **not** use `node --watch`. Watch mode follows every
+file the process opens, including the embedded database's own folder, so each database write restarted
+the server in a loop. Restart the API by hand after backend edits; the frontend keeps hot reload.

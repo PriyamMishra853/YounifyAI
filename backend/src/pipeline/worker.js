@@ -47,7 +47,7 @@ export function createWorker(deps) {
     if (failed.length || requeued.length) log.warn({ failed: failed.length, requeued: requeued.length }, 'recovered stale jobs')
   }
 
-  async function process(job) {
+  async function runJob(job) {
     const started = Date.now()
     try {
       await runPipeline(deps, job)
@@ -70,7 +70,7 @@ export function createWorker(deps) {
         const job = await claim()
         if (!job) break
         running++
-        const p = process(job).finally(() => {
+        const p = runJob(job).finally(() => {
           running--
           inflight.delete(p)
           schedule(0)

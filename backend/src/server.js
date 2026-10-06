@@ -1,3 +1,4 @@
+import net from 'node:net'
 import pino from 'pino'
 import { createAi } from './ai/index.js'
 import { createVectorStore } from './ai/vectors.js'
@@ -25,9 +26,25 @@ export async function boot(config = loadConfig(), { log = pino({ level: config.l
   return { ...deps, app, worker }
 }
 
+/** Resolves false when something is already listening on the port. */
+function portFree(port) {
+  return new Promise((resolve) => {
+    const probe = net.createServer()
+    probe.once('error', () => resolve(false))
+    probe.once('listening', () => probe.close(() => resolve(true)))
+    probe.listen(port, '0.0.0.0')
+  })
+}
+
 /** Start the HTTP server and the pipeline worker; stop both cleanly on SIGINT/SIGTERM. */
 export async function startServer(config = loadConfig()) {
   const log = pino({ level: config.logLevel })
+  // Checked before the database is opened: two servers sharing one PGlite folder
+  // corrupt it, and this is the only way that happens in practice.
+  if (!(await portFree(config.port))) {
+    log.error({ port: config.port }, `YounifyAI is already running on port ${config.port}. Stop it first, or set PORT to something else.`)
+    process.exit(1)
+  }
   const stack = await boot(config, { log })
   if (config.runWorker) await stack.worker.start()
   const server = stack.app.listen(config.port, () => log.info({ port: config.port }, `YounifyAI API listening on http://localhost:${config.port}`))

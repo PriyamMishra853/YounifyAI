@@ -9,7 +9,7 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "dev": "node --watch-path=src --watch-path=../shared/src --env-file-if-exists=.env src/index.js",
+    "dev": "node --env-file-if-exists=.env src/index.js",
     "start": "node --env-file-if-exists=.env src/index.js",
     "migrate": "node --env-file-if-exists=.env src/db/cli.js migrate",
     "test": "node --test --test-concurrency=1 \"test/*.test.js\"",

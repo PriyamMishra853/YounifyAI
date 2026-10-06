@@ -31,11 +31,24 @@ async function scoped(q, { workspaceId, userId }) {
   ])
 }
 
-async function createPglite(dir) {
+async function createPglite(dir, log) {
   const { PGlite } = await import('@electric-sql/pglite')
   const { vector } = await import('@electric-sql/pglite-pgvector')
   if (dir) await fs.mkdir(dir, { recursive: true })
-  const pg = await PGlite.create({ dataDir: dir || undefined, extensions: { vector } })
+  const open = () => PGlite.create({ dataDir: dir || undefined, extensions: { vector } })
+  let pg
+  try {
+    pg = await open()
+  } catch (e) {
+    // A server killed mid-run leaves postmaster.pid behind and Postgres then
+    // refuses to start. Nothing else can be holding this folder: the port check
+    // in startServer() has already ruled out a second copy of the API.
+    const lock = dir && path.join(dir, 'postmaster.pid')
+    if (!lock || !(await fs.access(lock).then(() => true, () => false))) throw e
+    log?.warn({ lock }, 'database did not open; removing the lock file left by a previous run and retrying')
+    await fs.rm(lock, { force: true })
+    pg = await open()
+  }
   const base = wrap((sql, params) => pg.query(sql, params))
   return {
     kind: 'pglite',
@@ -91,7 +104,7 @@ async function createPostgres(url) {
 }
 
 export async function createDb(config, log) {
-  const db = config.databaseUrl ? await createPostgres(config.databaseUrl) : await createPglite(config.pgliteDir)
+  const db = config.databaseUrl ? await createPostgres(config.databaseUrl) : await createPglite(config.pgliteDir, log)
   log?.info({ driver: db.kind, dir: db.kind === 'pglite' ? config.pgliteDir || 'memory' : undefined }, 'database connected')
   return db
 }
